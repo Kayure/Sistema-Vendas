@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loja - Sistema de Vendas</title>
+<style>
+  :root { --fundo:#eef2f4; --papel:#fff; --tinta:#16262e; --suave:#5d727c; --linha:#d3dde2; --azul:#00758f; --alerta:#b3261e; --console:#10191d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fundo); color:var(--tinta); font:16px/1.5 "Segoe UI", system-ui, sans-serif; }
+  [hidden] { display:none !important; }
+  header, main { max-width:960px; margin:0 auto; padding:0 20px; }
+  header { padding-top:28px; }
+  .topo { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  h1 { margin:0; font-size:1.6rem; }
+  h2 { margin:0 0 12px; font-size:1.1rem; }
+  nav { display:flex; gap:4px; border-bottom:2px solid var(--linha); margin-top:16px; overflow-x:auto; }
+  nav button { background:none; border:0; padding:10px 18px; font:inherit; color:var(--suave); cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; }
+  nav button[aria-selected="true"] { color:var(--azul); border-color:var(--azul); font-weight:600; }
+  section { background:var(--papel); border:1px solid var(--linha); border-radius:6px; margin:20px 0; padding:20px; }
+  form { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:16px; }
+  label { display:flex; flex-direction:column; font-size:.85rem; color:var(--suave); gap:2px; flex:1 1 150px; }
+  input, select { font:inherit; padding:8px; border:1px solid var(--linha); border-radius:4px; color:var(--tinta); background:#fff; }
+  .btn { font:inherit; padding:8px 16px; border:0; border-radius:4px; background:var(--azul); color:#fff; cursor:pointer; }
+  .btn.sec { background:none; color:var(--azul); border:1px solid var(--azul); }
+  .btn.perigo { background:none; color:var(--alerta); border:1px solid var(--alerta); }
+  .btn.pequeno { padding:3px 10px; font-size:.88rem; }
+  .tabela { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  th, td { text-align:left; padding:8px; border-bottom:1px solid var(--linha); white-space:nowrap; }
+  th { color:var(--suave); font-weight:600; }
+  td.acoes { display:flex; gap:6px; }
+  .total { font-size:1.2rem; font-weight:600; margin:8px 0 16px; }
+  #aviso { min-height:1.5em; margin:0 0 12px; font-weight:600; }
+  #aviso.erro { color:var(--alerta); } #aviso.ok { color:var(--azul); }
+  #detalhe { background:var(--fundo); border-radius:4px; padding:10px 14px; margin-top:12px; font-size:.92rem; }
+  #detalhe:empty { display:none; }
+  #login { max-width:380px; margin:80px auto; }
+  #login form { flex-direction:column; align-items:stretch; }
+  .dica { color:var(--suave); font-size:.88rem; }
+  .editando .extra { display:none; }
+  footer { background:var(--console); color:#cfe3ea; margin-top:32px; padding:16px 0 24px; }
+  footer div { max-width:960px; margin:0 auto; padding:0 20px; }
+  footer h2 { color:#fff; font-size:.95rem; }
+  #log { font:13px/1.6 Consolas, "Courier New", monospace; max-height:150px; overflow:auto; margin:0; padding:0; list-style:none; }
+  #log .ok { color:#7fd6a8; } #log .erro { color:#ff9c94; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--azul); outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<!-- ===== TELA DE LOGIN ===== -->
+<section id="login">
+  <h1>Loja</h1>
+  <p class="dica">Entre para registrar vendas. Usuário de teste: admin@escola.com / 123456</p>
+  <form id="formLogin">
+    <label>E-mail<input name="email" type="email" required></label>
+    <label>Senha<input name="senha" type="password" required></label>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+  <p id="erroLogin" class="dica" style="color:var(--alerta)"></p>
+</section>
+
+<!-- ===== SISTEMA ===== -->
+<div id="sistema" hidden>
+  <header>
+    <div class="topo">
+      <h1>Loja</h1>
+      <div><span id="nomeUsuario" class="dica"></span> <button class="btn sec pequeno" id="sair">Sair</button></div>
+    </div>
+    <nav id="abas" role="tablist"></nav>
+  </header>
+  <main>
+    <p id="aviso" role="status"></p>
+
+    <!-- Nova venda -->
+    <section id="nova" hidden>
+      <h2>Nova venda</h2>
+      <form id="formCliente">
+        <label>Cliente<select id="selCliente" required></select></label>
+        <label>Forma de pagamento
+          <select id="selPagamento"><option>PIX</option><option>Cartão</option><option>Boleto</option></select>
+        </label>
+      </form>
+      <form id="formItem">
+        <label>Produto<select id="selProduto" required></select></label>
+        <label style="flex:0 1 110px">Quantidade<input id="qtd" type="number" min="1" value="1" required></label>
+        <button class="btn sec" type="submit">Adicionar item</button>
+      </form>
+      <div class="tabela"><table>
+        <thead><tr><th>Produto</th><th>Qtd</th><th>Preço</th><th>Subtotal</th><th></th></tr></thead>
+        <tbody id="itens"></tbody>
+      </table></div>
+      <p class="total">Total: <span id="total">R$ 0,00</span></p>
+      <button class="btn" id="finalizar">Finalizar venda</button>
+    </section>
+
+    <!-- Histórico de vendas -->
+    <section id="vendas" hidden>
+      <h2>Vendas</h2>
+      <div class="tabela"><table>
+        <thead><tr><th>Nº</th><th>Cliente</th><th>Vendedor</th><th>Data</th><th>Total</th><th>Pagamento</th><th>Status</th><th></th></tr></thead>
+        <tbody id="corpoVendas"></tbody>
+      </table></div>
+    </section>
+
+    <!-- Clientes e Produtos (mesmo molde) -->
+    <section id="painel" hidden>
+      <h2 id="titulo"></h2>
+      <form id="form"></form>
+      <div class="tabela"><table><thead id="cab"></thead><tbody id="corpo"></tbody></table></div>
+    </section>
+
+    <div id="detalhe"></div>
+  </main>
+  <footer><div><h2>Requisições feitas à API</h2><ul id="log"></ul></div></footer>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+const $ = (id) => document.getElementById(id);
+const dinheiro = (n) => Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+const colunasDinheiro = ['preco', 'valor_total', 'preco_unitario', 'subtotal'];
+
+let token = sessionStorage.getItem('token');
+let aba = 'nova';
+let editando = null;
+let carrinho = [];   // itens da venda em montagem: { id_produto, nome, preco, quantidade }
+let produtos = [];
+
+// ---------- Comunicação com a API ----------
+// Toda conversa com o servidor passa por aqui (e envia o token de login).
+async function api(metodo, caminho, corpo) {
+  const resposta = await fetch(API + caminho, {
+    method: metodo,
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token },
+    body: corpo ? JSON.stringify(corpo) : undefined,
+  });
+  const dados = await resposta.json();
+  registrar(`${metodo} ${caminho} → ${resposta.status}`, resposta.ok);
+  if (resposta.status === 401 && caminho !== '/login') sair();
+  if (!resposta.ok) throw new Error(dados.erro);
+  return dados;
+}
+
+function registrar(texto, ok) {
+  const li = document.createElement('li');
+  li.className = ok ? 'ok' : 'erro';
+  li.textContent = texto;
+  $('log').prepend(li);
+}
+function avisar(texto, tipo) { $('aviso').textContent = texto; $('aviso').className = tipo || ''; }
+function botao(texto, classe, aoClicar) {
+  const b = document.createElement('button');
+  b.textContent = texto; b.className = classe; b.onclick = aoClicar;
+  return b;
+}
+
+// ---------- Login ----------
+$('formLogin').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api('POST', '/login', Object.fromEntries(new FormData(e.target)));
+    token = r.token; sessionStorage.setItem('token', token); sessionStorage.setItem('nome', r.nome);
+    entrar();
+  } catch (erro) {
+    $('erroLogin').textContent = erro.message === 'Failed to fetch'
+      ? 'Não foi possível falar com a API. Ela está rodando (npm start)?' : erro.message;
+  }
+};
+function entrar() {
+  $('login').hidden = true; $('sistema').hidden = false;
+  $('nomeUsuario').textContent = sessionStorage.getItem('nome') || '';
+  abrir('nova');
+}
+function sair() {
+  sessionStorage.clear(); token = null;
+  $('sistema').hidden = true; $('login').hidden = false;
+}
+$('sair').onclick = sair;
+
+// ---------- Abas ----------
+const recursos = {
+  clientes: { titulo:'Clientes', id:'id_cliente',
+    colunas:['id_cliente','nome','cpf','email','data_cadastro'],
+    campos:[{n:'nome',r:'Nome'},{n:'cpf',r:'CPF'},{n:'email',r:'E-mail',t:'email'}],
+    extra:[{n:'rua',r:'Rua'},{n:'numero',r:'Número'},{n:'bairro',r:'Bairro'},{n:'cidade',r:'Cidade'},{n:'cep',r:'CEP'}],
+    detalhe:{ rotulo:'Endereços', rota:(id) => `/clientes/${id}/enderecos`,
+      texto:(e) => `${e.rua}, ${e.numero} - ${e.bairro}, ${e.cidade} (${e.cep})` } },
+  produtos: { titulo:'Produtos', id:'id_produto',
+    colunas:['id_produto','nome_produto','preco','estoque'],
+    campos:[{n:'nome_produto',r:'Produto'},{n:'preco',r:'Preço (R$)',t:'number',s:'0.01'},{n:'estoque',r:'Estoque',t:'number'}] },
+};
+const abas = { nova:'Nova venda', vendas:'Vendas', clientes:'Clientes', produtos:'Produtos' };
+
+Object.entries(abas).forEach(([nome, rotulo]) => {
+  const b = document.createElement('button');
+  b.textContent = rotulo; b.dataset.nome = nome; b.role = 'tab';
+  b.onclick = () => abrir(nome);
+  $('abas').append(b);
+});
+
+function abrir(nome) {
+  aba = nome; editando = null;
+  $('detalhe').innerHTML = ''; avisar('');
+  document.querySelectorAll('#abas button').forEach(b => b.setAttribute('aria-selected', b.dataset.nome === nome));
+  $('nova').hidden = nome !== 'nova';
+  $('vendas').hidden = nome !== 'vendas';
+  $('painel').hidden = !recursos[nome];
+  if (nome === 'nova') prepararVenda();
+  else if (nome === 'vendas') listarVendas();
+  else montarPainel();
+}
+
+// ---------- Nova venda ----------
+async function prepararVenda() {
+  carrinho = []; desenharCarrinho();
+  try {
+    const clientes = await api('GET', '/clientes');
+    produtos = await api('GET', '/produtos');
+    $('selCliente').innerHTML = clientes.map(c => `<option value="${c.id_cliente}">${c.nome}</option>`).join('');
+    $('selProduto').innerHTML = produtos.map(p =>
+      `<option value="${p.id_produto}">${p.nome_produto} - ${dinheiro(p.preco)} (estoque ${p.estoque})</option>`).join('');
+  } catch (e) { avisar(e.message, 'erro'); }
+}
+
+$('formItem').onsubmit = (e) => {
+  e.preventDefault();
+  const p = produtos.find(x => x.id_produto == $('selProduto').value);
+  const quantidade = Number($('qtd').value);
+  const existente = carrinho.find(i => i.id_produto === p.id_produto);
+  if (existente) existente.quantidade += quantidade;
+  else carrinho.push({ id_produto:p.id_produto, nome:p.nome_produto, preco:p.preco, quantidade });
+  desenharCarrinho();
+};
+
+function desenharCarrinho() {
+  $('itens').innerHTML = carrinho.length ? '' : '<tr><td colspan="5">Escolha um produto e clique em Adicionar item.</td></tr>';
+  carrinho.forEach((item, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item.nome}</td><td>${item.quantidade}</td><td>${dinheiro(item.preco)}</td><td>${dinheiro(item.preco * item.quantidade)}</td><td></td>`;
+    tr.lastChild.append(botao('Remover', 'btn perigo pequeno', () => { carrinho.splice(i, 1); desenharCarrinho(); }));
+    $('itens').append(tr);
+  });
+  $('total').textContent = dinheiro(carrinho.reduce((soma, i) => soma + i.preco * i.quantidade, 0));
+}
+
+$('finalizar').onclick = async () => {
+  try {
+    const r = await api('POST', '/vendas', {
+      id_cliente: Number($('selCliente').value),
+      forma_pagamento: $('selPagamento').value,
+      itens: carrinho.map(i => ({ id_produto:i.id_produto, quantidade:i.quantidade })),
+    });
+    prepararVenda();
+    avisar(`Venda ${r.id_venda} registrada: ${dinheiro(r.valor_total)}.`, 'ok');
+  } catch (e) { avisar(e.message, 'erro'); }
+};
+
+// ---------- Histórico de vendas ----------
+async function listarVendas() {
+  try {
+    const vendas = await api('GET', '/vendas');
+    $('corpoVendas').innerHTML = vendas.length ? '' : '<tr><td colspan="8">Nenhuma venda registrada ainda.</td></tr>';
+    vendas.forEach(v => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${v.id_venda}</td><td>${v.cliente}</td><td>${v.vendedor}</td><td>${v.data_venda}</td>
+        <td>${dinheiro(v.valor_total)}</td><td>${v.forma_pagamento || ''}</td><td>${v.status || ''}</td><td class="acoes"></td>`;
+      const acoes = tr.lastChild;
+      acoes.append(botao('Itens', 'btn sec pequeno', () => mostrarItens(v.id_venda)));
+      if (v.status === 'Pendente') acoes.append(botao('Marcar como pago', 'btn pequeno', async () => {
+        try { await api('PUT', `/pagamentos/${v.id_pagamento}`, { status:'Pago' }); } catch (e) { avisar(e.message, 'erro'); }
+        listarVendas();
+      }));
+      $('corpoVendas').append(tr);
+    });
+  } catch (e) { avisar('Não foi possível carregar: ' + e.message, 'erro'); }
+}
+
+async function mostrarItens(id) {
+  const itens = await api('GET', `/vendas/${id}/itens`);
+  $('detalhe').innerHTML = `<strong>Itens da venda ${id}</strong><br>` +
+    itens.map(i => `${i.quantidade} x ${i.nome_produto} a ${dinheiro(i.preco_unitario)} = ${dinheiro(i.subtotal)}`).join('<br>');
+}
+
+// ---------- Clientes e Produtos ----------
+function montarPainel() {
+  const r = recursos[aba];
+  $('titulo').textContent = r.titulo;
+  $('form').classList.remove('editando');
+  const campo = (c, extra) => `<label class="${extra ? 'extra' : ''}">${c.r}<input name="${c.n}" type="${c.t || 'text'}" step="${c.s || ''}" ${extra ? '' : 'required'}></label>`;
+  $('form').innerHTML = r.campos.map(c => campo(c)).join('') + (r.extra || []).map(c => campo(c, true)).join('')
+    + `<button class="btn" type="submit">Cadastrar</button><button class="btn sec" type="button" id="cancelar" hidden>Cancelar</button>`;
+  $('cancelar').onclick = () => abrir(aba);
+  $('cab').innerHTML = '<tr>' + r.colunas.map(c => `<th>${c.replace(/_/g, ' ')}</th>`).join('') + '<th></th></tr>';
+  listar();
+}
+
+async function listar() {
+  const r = recursos[aba];
+  try {
+    const linhas = await api('GET', '/' + aba);
+    $('corpo').innerHTML = linhas.length ? '' : '<tr><td colspan="9">Nenhum registro. Use o formulário acima para cadastrar.</td></tr>';
+    linhas.forEach(l => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = r.colunas.map(c => `<td>${colunasDinheiro.includes(c) ? dinheiro(l[c]) : (l[c] ?? '')}</td>`).join('') + '<td class="acoes"></td>';
+      const acoes = tr.lastChild;
+      if (r.detalhe) acoes.append(botao(r.detalhe.rotulo, 'btn sec pequeno', () => mostrarDetalhe(l[r.id])));
+      acoes.append(botao('Editar', 'btn sec pequeno', () => editar(l)));
+      acoes.append(botao('Remover', 'btn perigo pequeno', () => remover(l[r.id])));
+      $('corpo').append(tr);
+    });
+  } catch (e) { avisar('Não foi possível carregar: ' + e.message, 'erro'); }
+}
+
+async function mostrarDetalhe(id) {
+  const d = recursos[aba].detalhe;
+  const lista = await api('GET', d.rota(id));
+  $('detalhe').innerHTML = `<strong>${d.rotulo}</strong><br>` + (lista.length ? lista.map(d.texto).join('<br>') : 'Nenhum cadastrado.');
+}
+
+function editar(linha) {
+  const r = recursos[aba];
+  editando = linha[r.id];
+  r.campos.forEach(c => { $('form').elements[c.n].value = linha[c.n] ?? ''; });
+  $('form').classList.add('editando');
+  $('form').querySelector('[type=submit]').textContent = 'Salvar alterações';
+  $('cancelar').hidden = false;
+}
+
+async function remover(id) {
+  if (!confirm('Remover o registro ' + id + '?')) return;
+  try { await api('DELETE', `/${aba}/${id}`); avisar('Registro removido.', 'ok'); }
+  catch (e) { avisar(e.message, 'erro'); }
+  listar();
+}
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  const r = recursos[aba];
+  const dados = Object.fromEntries(new FormData($('form')));
+  const extras = {};
+  (r.extra || []).forEach(c => { extras[c.n] = dados[c.n]; delete dados[c.n]; });
+  try {
+    if (editando) {
+      await api('PUT', `/${aba}/${editando}`, dados);
+      avisar('Registro atualizado.', 'ok');
+    } else {
+      const criado = await api('POST', '/' + aba, dados);
+      if (r.extra && extras[r.extra[0].n]) await api('POST', r.detalhe.rota(criado[r.id]), extras);
+      avisar('Registro cadastrado.', 'ok');
+    }
+    abrir(aba);
+  } catch (erro) { avisar(erro.message, 'erro'); }
+};
+
+if (token) entrar();
+</script>
+</body>
+</html>
